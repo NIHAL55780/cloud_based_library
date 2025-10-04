@@ -1,0 +1,42 @@
+[
+  {
+    "id": "rec1",
+    "title": "Klara and the Sun",
+    "author": "Kazuo Ishiguro",
+    "genre": "Science Fiction",
+    "cover": "https://images.unsplash.com/photo-1621351183012-e2f9972dd9bf?w=400&h=600&fit=crop",
+    "reason": "Based on your interest in thought-provoking fiction"
+  },
+  {
+    "id": "rec2",
+    "title": "The Thursday Murder Club",
+    "author": "Richard Osman",
+    "genre": "Mystery",
+    "cover": "https://images.unsplash.com/photo-1541963463532-d68292c34b19?w=400&h=600&fit=crop",
+    "reason": "You enjoyed thrilling mysteries"
+  },
+  {
+    "id": "rec3",
+    "title": "Sapiens",
+    "author": "Yuval Noah Harari",
+    "genre": "Non-Fiction",
+    "cover": "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=400&h=600&fit=crop",
+    "reason": "Recommended for biography enthusiasts"
+  },
+  {
+    "id": "rec4",
+    "title": "The Invisible Life of Addie LaRue",
+    "author": "V.E. Schwab",
+    "genre": "Fantasy",
+    "cover": "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=600&fit=crop",
+    "reason": "Perfect for fans of magical realism"
+  },
+  {
+    "id": "rec5",
+    "title": "Thinking, Fast and Slow",
+    "author": "Daniel Kahneman",
+    "genre": "Psychology",
+    "cover": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop",
+    "reason": "You might enjoy this after reading psychology books"
+  }
+]
