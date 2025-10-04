@@ -1,0 +1,122 @@
+[
+  {
+    "id": "1",
+    "title": "The Midnight Library",
+    "author": "Matt Haig",
+    "genre": "Fiction",
+    "language": "English",
+    "year": 2020,
+    "cover": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=600&fit=crop",
+    "description": "Between life and death there is a library, and within that library, the shelves go on forever. Every book provides a chance to try another life you could have lived.",
+    "summary": "A profound exploration of choices, regrets, and the infinite possibilities of life.",
+    "reviews": [
+      { "user": "Sarah M.", "rating": 5, "comment": "Life-changing book! Made me reflect on my choices." },
+      { "user": "John D.", "rating": 4, "comment": "Beautiful concept, well executed." }
+    ]
+  },
+  {
+    "id": "2",
+    "title": "Project Hail Mary",
+    "author": "Andy Weir",
+    "genre": "Science Fiction",
+    "language": "English",
+    "year": 2021,
+    "cover": "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=400&h=600&fit=crop",
+    "description": "A lone astronaut must save the earth from disaster in this incredible new science-based thriller.",
+    "summary": "An unforgettable interstellar adventure about survival and friendship.",
+    "reviews": [
+      { "user": "Mike R.", "rating": 5, "comment": "Best sci-fi I've read in years!" },
+      { "user": "Emma K.", "rating": 5, "comment": "Couldn't put it down. Brilliant!" }
+    ]
+  },
+  {
+    "id": "3",
+    "title": "The Silent Patient",
+    "author": "Alex Michaelides",
+    "genre": "Thriller",
+    "language": "English",
+    "year": 2019,
+    "cover": "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400&h=600&fit=crop",
+    "description": "A woman's act of violence against her husband—and of the therapist obsessed with uncovering her motive.",
+    "summary": "A shocking psychological thriller with a twist you won't see coming.",
+    "reviews": [
+      { "user": "Lisa P.", "rating": 5, "comment": "Mind-blowing twist!" },
+      { "user": "Tom W.", "rating": 4, "comment": "Kept me guessing until the end." }
+    ]
+  },
+  {
+    "id": "4",
+    "title": "Educated",
+    "author": "Tara Westover",
+    "genre": "Biography",
+    "language": "English",
+    "year": 2018,
+    "cover": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=600&fit=crop",
+    "description": "A memoir about a young girl who leaves her survivalist family and goes on to earn a PhD from Cambridge University.",
+    "summary": "An inspiring story of resilience and the transformative power of education.",
+    "reviews": [
+      { "user": "Rachel B.", "rating": 5, "comment": "Incredibly inspiring and moving." },
+      { "user": "David H.", "rating": 5, "comment": "A must-read memoir." }
+    ]
+  },
+  {
+    "id": "5",
+    "title": "Atomic Habits",
+    "author": "James Clear",
+    "genre": "Self-Help",
+    "language": "English",
+    "year": 2018,
+    "cover": "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400&h=600&fit=crop",
+    "description": "An easy and proven way to build good habits and break bad ones.",
+    "summary": "Transform your life one small habit at a time.",
+    "reviews": [
+      { "user": "Anna S.", "rating": 5, "comment": "Changed how I approach my goals." },
+      { "user": "Chris L.", "rating": 4, "comment": "Practical and actionable advice." }
+    ]
+  },
+  {
+    "id": "6",
+    "title": "Where the Crawdads Sing",
+    "author": "Delia Owens",
+    "genre": "Fiction",
+    "language": "English",
+    "year": 2018,
+    "cover": "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400&h=600&fit=crop",
+    "description": "A coming-of-age story of a young girl raised by the marshlands of the deep South.",
+    "summary": "A haunting tale of nature, isolation, and the resilience of the human spirit.",
+    "reviews": [
+      { "user": "Jessica T.", "rating": 5, "comment": "Beautiful and heartbreaking." },
+      { "user": "Mark V.", "rating": 4, "comment": "Captivating from start to finish." }
+    ]
+  },
+  {
+    "id": "7",
+    "title": "The Psychology of Money",
+    "author": "Morgan Housel",
+    "genre": "Finance",
+    "language": "English",
+    "year": 2020,
+    "cover": "https://images.unsplash.com/photo-1592496431122-2349e0fbc666?w=400&h=600&fit=crop",
+    "description": "Timeless lessons on wealth, greed, and happiness doing well with money.",
+    "summary": "Understanding the psychological aspects of financial decision-making.",
+    "reviews": [
+      { "user": "Brian K.", "rating": 5, "comment": "Eye-opening perspective on money." },
+      { "user": "Nicole M.", "rating": 5, "comment": "Should be required reading!" }
+    ]
+  },
+  {
+    "id": "8",
+    "title": "The Seven Husbands of Evelyn Hugo",
+    "author": "Taylor Jenkins Reid",
+    "genre": "Fiction",
+    "language": "English",
+    "year": 2017,
+    "cover": "https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?w=400&h=600&fit=crop",
+    "description": "Aging Hollywood icon Evelyn Hugo finally tells the truth about her glamorous and scandalous life.",
+    "summary": "A mesmerizing journey through the golden age of Hollywood.",
+    "reviews": [
+      { "user": "Amanda R.", "rating": 5, "comment": "Absolutely stunning story!" },
+      { "user": "Kevin J.", "rating": 5, "comment": "One of the best books I've ever read." }
+    ]
+  }
+]
