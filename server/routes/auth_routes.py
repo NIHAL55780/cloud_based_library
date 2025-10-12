@@ -12,8 +12,12 @@ from config import Config
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-# Initialize boto3 Cognito client
-cognito_client = boto3.client('cognito-idp', region_name=Config.AWS_REGION)
+# Initialize boto3 Cognito client (only if AWS credentials are available)
+try:
+    cognito_client = boto3.client('cognito-idp', region_name=Config.AWS_REGION)
+except Exception as e:
+    logging.warning(f"Cognito client initialization failed: {e}")
+    cognito_client = None
 
 # JWKS caching
 _JWKS_CACHE = {
@@ -82,6 +86,8 @@ def _validate_password(password: str):
 def _ensure_config():
     if not Config.COGNITO_CLIENT_ID or not Config.COGNITO_USER_POOL_ID:
         raise RuntimeError('Server misconfiguration: missing Cognito env vars')
+    if not cognito_client:
+        raise RuntimeError('Cognito client not available: check AWS credentials')
 
 # Health check
 @auth_bp.route('/health', methods=['GET'])

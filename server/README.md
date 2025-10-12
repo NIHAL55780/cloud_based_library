@@ -1,219 +1,271 @@
 # Cloud-Based Digital Library Backend
 
-A Flask-based backend API for the Cloud-Based Digital Library with AI Book Recommender system, featuring AWS Cognito authentication.
+A Flask-based REST API backend for a cloud-based digital library that integrates with AWS S3 for file storage and DynamoDB for metadata management.
 
-## 🚀 Features
+## Features
 
-- **User Authentication**: Signup and login using AWS Cognito
-- **CORS Support**: Ready for frontend integration
-- **Environment Configuration**: Secure environment variable management
-- **Error Handling**: Comprehensive error handling and validation
-- **Health Checks**: API health monitoring endpoints
+- **File Upload**: Upload PDF and JPG files to AWS S3
+- **Metadata Management**: Store and retrieve book metadata in DynamoDB
+- **REST API**: Clean RESTful endpoints for all operations
+- **CORS Support**: Configured for frontend integration
+- **Error Handling**: Comprehensive error handling and logging
+- **Health Checks**: Built-in health monitoring endpoints
 
-## 📁 Project Structure
+## Prerequisites
+
+- Python 3.8 or higher
+- AWS Account with S3 and DynamoDB access
+- AWS credentials (Access Key ID and Secret Access Key)
+
+## Installation
+
+1. **Clone the repository and navigate to the server directory:**
+   ```bash
+   cd server
+   ```
+
+2. **Create a virtual environment:**
+   ```bash
+   python -m venv venv
+   
+   # On Windows
+   venv\Scripts\activate
+   
+   # On macOS/Linux
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Set up environment variables:**
+   ```bash
+   # Copy the example environment file
+   cp env.example .env
+   
+   # Edit .env with your actual values
+   ```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the server directory with the following variables:
+
+```env
+# Flask Configuration
+SECRET_KEY=your-super-secret-key-here
+DEBUG=True
+PORT=5000
+
+# AWS Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-access-key
+
+# AWS Services
+S3_BUCKET_NAME=cloud-library-files
+DYNAMODB_TABLE_NAME=BooksMetadata
+
+# CORS Configuration
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+### AWS Setup
+
+1. **Create an S3 Bucket:**
+   - Bucket name: `cloud-library-files` (or update `S3_BUCKET_NAME` in .env)
+   - Region: Must match your `AWS_REGION`
+   - Configure public read access for uploaded files
+
+2. **Create a DynamoDB Table:**
+   - Table name: `BooksMetadata`
+   - Primary key: `BookID` (String)
+   - Attributes: `Title`, `Author`, `Genre`, `Description`, `S3URL`, `UploadDate`
+
+3. **IAM Permissions:**
+   Your AWS user/role needs the following permissions:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "s3:PutObject",
+           "s3:PutObjectAcl",
+           "s3:GetObject",
+           "s3:DeleteObject",
+           "s3:HeadBucket"
+         ],
+         "Resource": "arn:aws:s3:::cloud-library-files/*"
+       },
+       {
+         "Effect": "Allow",
+         "Action": [
+           "dynamodb:PutItem",
+           "dynamodb:GetItem",
+           "dynamodb:Scan",
+           "dynamodb:Query"
+         ],
+         "Resource": "arn:aws:dynamodb:us-east-1:*:table/BooksMetadata"
+       }
+     ]
+   }
+   ```
+
+## Running the Application
+
+1. **Start the Flask server:**
+   ```bash
+   python app.py
+   ```
+
+2. **The server will start on:**
+   - URL: `http://localhost:5000`
+   - Debug mode: Enabled (if DEBUG=True in .env)
+
+## API Endpoints
+
+### Base Information
+- **GET** `/` - API information and available endpoints
+- **GET** `/health` - Health check endpoint
+
+### Library Endpoints
+
+#### Get All Books
+- **GET** `/books`
+- **Description**: Retrieve all books from the database
+- **Response**: JSON with list of books and count
+
+#### Get Book by ID
+- **GET** `/books/<book_id>`
+- **Description**: Retrieve a specific book by its ID
+- **Parameters**: `book_id` (string) - The unique book identifier
+- **Response**: JSON with book metadata
+
+#### Upload Book
+- **POST** `/upload`
+- **Description**: Upload a new book file to S3 and add metadata to DynamoDB
+- **Content-Type**: `multipart/form-data`
+- **Form Fields**:
+  - `file` (required): PDF or JPG file
+  - `title` (required): Book title
+  - `author` (required): Book author
+  - `genre` (required): Book genre
+  - `description` (optional): Book description
+- **Response**: JSON with upload status and book metadata
+
+#### Health Check
+- **GET** `/health`
+- **Description**: Check the health of AWS services
+- **Response**: JSON with service status
+
+## Example Usage
+
+### Upload a Book
+```bash
+curl -X POST http://localhost:5000/upload \
+  -F "file=@example.pdf" \
+  -F "title=Example Book" \
+  -F "author=John Doe" \
+  -F "genre=Fiction" \
+  -F "description=A great example book"
+```
+
+### Get All Books
+```bash
+curl http://localhost:5000/books
+```
+
+### Get Specific Book
+```bash
+curl http://localhost:5000/books/123e4567-e89b-12d3-a456-426614174000
+```
+
+## Testing
+
+Run the test suite to verify all endpoints:
+
+```bash
+python test_library_api.py
+```
+
+The test script will:
+- Check server connectivity
+- Test all API endpoints
+- Verify error handling
+- Provide a summary of results
+
+## File Structure
 
 ```
 server/
 ├── app.py                 # Main Flask application
-├── config.py             # Configuration and environment variables
+├── config.py             # Configuration management
 ├── requirements.txt      # Python dependencies
 ├── env.example          # Environment variables template
-├── README.md            # This file
-└── routes/
-    └── auth_routes.py   # Authentication endpoints
+├── test_library_api.py  # API test suite
+├── routes/
+│   ├── auth_routes.py   # Authentication routes
+│   └── library_routes.py # Library management routes
+└── README.md            # This file
 ```
 
-## 🛠️ Setup Instructions
-
-### 1. Prerequisites
-
-- Python 3.8 or higher
-- AWS Account with Cognito User Pool configured
-- pip or pipenv for package management
-
-### 2. AWS Cognito Setup
-
-1. Create a Cognito User Pool in AWS Console
-2. Create an App Client (without client secret for USER_PASSWORD_AUTH)
-3. Note down your User Pool ID and Client ID
-
-### 3. Environment Configuration
-
-1. Copy the environment template:
-   ```bash
-   cp env.example .env
-   ```
-
-2. Edit `.env` file with your actual values:
-   ```env
-   SECRET_KEY=your-super-secret-key-here
-   DEBUG=True
-   PORT=5000
-   AWS_REGION=us-east-1
-   COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
-   COGNITO_CLIENT_ID=your-cognito-client-id-here
-   CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-   ```
-
-### 4. Install Dependencies
-
-```bash
-# Using pip
-pip install -r requirements.txt
-
-# Or using pipenv
-pipenv install
-```
-
-### 5. Run the Server
-
-```bash
-# Development mode
-python app.py
-
-# Or using Flask CLI
-flask run
-
-# Production mode with Gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-```
-
-The server will start on `http://localhost:5000` (or the port specified in your `.env` file).
-
-## 📡 API Endpoints
-
-### Base Endpoints
-
-- `GET /` - API information and available endpoints
-- `GET /health` - Health check
-
-### Authentication Endpoints
-
-- `POST /auth/signup` - User registration
-- `POST /auth/login` - User login
-- `GET /auth/health` - Auth service health check
-
-## 🧪 Testing with Postman
-
-### 1. User Signup
-
-**Endpoint**: `POST http://localhost:5000/auth/signup`
-
-**Headers**:
-```
-Content-Type: application/json
-```
-
-**Body** (JSON):
-```json
-{
-    "email": "user@example.com",
-    "password": "SecurePass123"
-}
-```
-
-**Expected Response** (201):
-```json
-{
-    "message": "User created successfully",
-    "user_sub": "uuid-here",
-    "confirmation_required": "user@example.com",
-    "next_step": "Please check your email for verification code"
-}
-```
-
-### 2. User Login
-
-**Endpoint**: `POST http://localhost:5000/auth/login`
-
-**Headers**:
-```
-Content-Type: application/json
-```
-
-**Body** (JSON):
-```json
-{
-    "email": "user@example.com",
-    "password": "SecurePass123"
-}
-```
-
-**Expected Response** (200):
-```json
-{
-    "message": "Login successful",
-    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refresh_token": "eyJjdHkiOiJKV1QiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiUlNBLU9BRVAifQ...",
-    "token_type": "Bearer",
-    "expires_in": 3600
-}
-```
-
-### 3. Health Check
-
-**Endpoint**: `GET http://localhost:5000/health`
-
-**Expected Response** (200):
-```json
-{
-    "status": "healthy",
-    "service": "cloud-library-api",
-    "version": "1.0.0"
-}
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `SECRET_KEY` | Flask secret key | Yes | - |
-| `DEBUG` | Enable debug mode | No | False |
-| `PORT` | Server port | No | 5000 |
-| `AWS_REGION` | AWS region | Yes | us-east-1 |
-| `COGNITO_USER_POOL_ID` | Cognito User Pool ID | Yes | - |
-| `COGNITO_CLIENT_ID` | Cognito Client ID | Yes | - |
-| `CORS_ORIGINS` | Allowed CORS origins | No | localhost:3000,localhost:5173 |
-
-### AWS Permissions
-
-Your AWS credentials need the following permissions:
-- `cognito-idp:SignUp`
-- `cognito-idp:InitiateAuth`
-- `cognito-idp:AdminGetUser`
-- `cognito-idp:AdminUpdateUserAttributes`
-
-## 🚨 Error Handling
+## Error Handling
 
 The API includes comprehensive error handling for:
+- Missing or invalid files
+- AWS service errors
+- Database connection issues
+- Invalid request parameters
+- File type validation
 
-- **Validation Errors**: Invalid email format, weak passwords
-- **AWS Cognito Errors**: User exists, authentication failures, rate limiting
-- **Server Errors**: Internal server errors with appropriate status codes
+All errors return JSON responses with appropriate HTTP status codes.
 
-## 🔒 Security Features
+## Security Considerations
 
-- Password strength validation
-- Email format validation
-- CORS configuration
-- Environment variable protection
-- AWS Cognito integration for secure authentication
+- Files are validated for type and size
+- AWS credentials are loaded from environment variables
+- CORS is configured for specific origins
+- File names are sanitized before upload
+- S3 files are set to public read (consider private buckets for production)
 
-## 🚀 Next Steps
+## Production Deployment
 
-This backend is ready for integration with:
-- **DynamoDB**: For book and user data storage
-- **S3**: For file uploads and book content
-- **SageMaker**: For AI-powered book recommendations
-- **React Frontend**: The existing frontend in this project
+For production deployment:
 
-## 📝 Development Notes
+1. Set `DEBUG=False` in your environment
+2. Use a production WSGI server like Gunicorn
+3. Configure proper logging
+4. Use IAM roles instead of access keys
+5. Enable S3 bucket encryption
+6. Configure DynamoDB backup and monitoring
+7. Set up proper CORS origins for your domain
 
-- The application uses Flask Blueprints for modular route organization
-- All routes return JSON responses with consistent error formatting
-- CORS is configured for frontend integration
-- Environment variables are validated on startup
-- The application follows RESTful API conventions
+## Troubleshooting
+
+### Common Issues
+
+1. **AWS Credentials Error**: Ensure your `.env` file has correct AWS credentials
+2. **S3 Bucket Not Found**: Verify the bucket name and region match your configuration
+3. **DynamoDB Table Not Found**: Ensure the table exists with the correct name and primary key
+4. **CORS Errors**: Check that your frontend URL is included in `CORS_ORIGINS`
+
+### Logs
+
+The application logs important events and errors. Check the console output for debugging information.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.

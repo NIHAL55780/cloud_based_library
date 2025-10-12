@@ -10,6 +10,7 @@ import logging
 
 from config import Config
 from routes.auth_routes import auth_bp
+from routes.library_routes import library_bp
 
 def create_app():
     """Application factory pattern for creating Flask app"""
@@ -39,6 +40,7 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(auth_bp)
+    app.register_blueprint(library_bp)
     
     # Base route to confirm API is running
     @app.route('/')
@@ -54,6 +56,12 @@ def create_app():
                     'login': 'POST /auth/login',
                     'health': 'GET /auth/health',
                     'protected': 'GET /auth/protected'
+                },
+                'library': {
+                    'get_all_books': 'GET /books',
+                    'get_book_by_id': 'GET /books/<book_id>',
+                    'upload_book': 'POST /upload',
+                    'health_check': 'GET /health'
                 }
             }
         }), 200
