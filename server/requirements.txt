@@ -4,7 +4,7 @@
 Flask==3.0.0
 Flask-CORS==4.0.0
 
-# AWS SDK
+# AWS SDK (only for Cognito)
 boto3==1.34.0
 botocore==1.34.0
 

@@ -59,8 +59,7 @@ def create_app():
                 },
                 'library': {
                     'get_all_books': 'GET /books',
-                    'get_book_by_id': 'GET /books/<book_id>',
-                    'upload_book': 'POST /upload',
+                    'get_book_url': 'GET /book/<filename>',
                     'health_check': 'GET /health'
                 }
             }
