@@ -281,6 +281,263 @@ def get_all_books():
         }), 500
 
 
+@library_bp.route('/debug/test-book/<bookid>', methods=['GET'])
+def debug_test_book_by_id(bookid):
+    """
+    Debug endpoint to test getting a book by BookID
+    """
+    try:
+        from dynamodb_helper import SimpleDynamoDBHelper
+        db_helper = SimpleDynamoDBHelper()
+        
+        book = db_helper.get_book_by_id(bookid)
+        
+        if book:
+            return jsonify({
+                'success': True,
+                'book': book,
+                'message': f'Found book with BookID: {bookid}'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'No book found with BookID: {bookid}'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@library_bp.route('/debug/test-filename/<filename>', methods=['GET'])
+def debug_test_filename(filename):
+    """
+    Debug endpoint to test filename parsing and matching
+    """
+    from urllib.parse import unquote
+    from dynamodb_helper import SimpleDynamoDBHelper
+    
+    decoded_filename = unquote(filename)
+    logger.info(f'Testing filename: {decoded_filename}')
+    
+    try:
+        db_helper = SimpleDynamoDBHelper()
+        
+        # Parse the filename
+        parsed_data = db_helper._parse_filename_to_title_author(decoded_filename)
+        title = parsed_data.get('title')
+        author = parsed_data.get('author')
+        
+        logger.info(f'Parsed - Title: "{title}", Author: "{author}"')
+        
+        # Get all books to see what we're matching against
+        all_books = db_helper.get_all_books()
+        
+        # Try to find matches
+        matches = []
+        for book in all_books:
+            book_title = book.get('Title', '')
+            book_author = book.get('Author', '')
+            
+            title_match = title and title.lower() in book_title.lower()
+            author_match = author and author.lower() in book_author.lower()
+            
+            if title_match or author_match:
+                matches.append({
+                    'BookID': book.get('BookID'),
+                    'Title': book_title,
+                    'Author': book_author,
+                    'title_match': title_match,
+                    'author_match': author_match
+                })
+        
+        return jsonify({
+            'success': True,
+            'original_filename': filename,
+            'decoded_filename': decoded_filename,
+            'parsed_title': title,
+            'parsed_author': author,
+            'total_books': len(all_books),
+            'matches': matches,
+            'message': f'Found {len(matches)} potential matches'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error in debug_test_filename: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@library_bp.route('/debug/filenames', methods=['GET'])
+def debug_filenames():
+    """
+    Debug endpoint to see all filenames in the table
+    """
+    logger.info('Received debug request to see all filenames')
+    
+    try:
+        from dynamodb_helper import SimpleDynamoDBHelper
+        db_helper = SimpleDynamoDBHelper()
+        
+        # Get all books from DynamoDB
+        books = db_helper.get_all_books()
+        
+        # Since there's no filename field, let's show Title and Author combinations
+        book_info = []
+        if books:
+            for book in books:
+                title = book.get('Title', 'Unknown')
+                author = book.get('Author', 'Unknown')
+                book_info.append(f"{title} by {author}")
+        else:
+            book_info = ['NO_BOOKS_FOUND']
+        
+        logger.info(f'Found {len(book_info)} books in BookMetaData table')
+        
+        return jsonify({
+            'success': True,
+            'count': len(book_info),
+            'books': book_info,
+            'message': f'Found {len(book_info)} books in BookMetaData table'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error in debug_filenames: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to retrieve filenames from BookMetaData table'
+        }), 500
+
+
+@library_bp.route('/debug/books', methods=['GET'])
+def debug_books():
+    """
+    Debug endpoint to see what's in the BookMetaData table
+    """
+    logger.info('Received debug request to see all books')
+    
+    try:
+        from dynamodb_helper import SimpleDynamoDBHelper
+        db_helper = SimpleDynamoDBHelper()
+        
+        # Get all books from DynamoDB
+        books = db_helper.get_all_books()
+        
+        logger.info(f'Found {len(books)} books in BookMetaData table')
+        
+        return jsonify({
+            'success': True,
+            'count': len(books),
+            'books': books,
+            'message': f'Found {len(books)} books in BookMetaData table'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error in debug_books: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to retrieve books from BookMetaData table'
+        }), 500
+
+
+@library_bp.route('/book/<filename>/details', methods=['GET'])
+def get_book_details(filename):
+    """
+    GET /book/<filename>/details - Get detailed metadata for a specific book
+    
+    Args:
+        filename (str): The filename of the book
+        
+    Returns:
+        JSON response with book metadata from DynamoDB
+    """
+    from urllib.parse import unquote
+    
+    # Decode URL encoding
+    decoded_filename = unquote(filename)
+    logger.info(f'Received request to GET /book/{filename}/details')
+    logger.info(f'Original filename: {filename}')
+    logger.info(f'Decoded filename: {decoded_filename}')
+    
+    try:
+        # Import DynamoDB helper
+        from dynamodb_helper import SimpleDynamoDBHelper
+        db_helper = SimpleDynamoDBHelper()
+        
+        logger.info(f'Looking for book with filename: {decoded_filename}')
+        
+        # First, let's see what books are actually in the table
+        all_books = db_helper.get_all_books()
+        logger.info(f'Total books in table: {len(all_books)}')
+        if all_books:
+            logger.info('Sample books in table:')
+            for i, book in enumerate(all_books[:5]):  # Show first 5 books
+                title = book.get('Title', 'NO_TITLE')
+                author = book.get('Author', 'NO_AUTHOR')
+                logger.info(f'  {i+1}. "{title}" by "{author}"')
+        
+        # Get book details from DynamoDB using decoded filename
+        book_details = db_helper.get_book_by_filename(decoded_filename)
+        
+        logger.info(f'Book lookup result: {book_details is not None}')
+        if book_details:
+            logger.info(f'Found book: {book_details.get("title", "Unknown")} by {book_details.get("author", "Unknown")}')
+        else:
+            logger.warning(f'No book found with filename: {filename}')
+        
+        if not book_details:
+            return jsonify({
+                'success': False,
+                'error': 'Book not found',
+                'message': f'No book found with filename: {decoded_filename}',
+                'debug_info': {
+                    'original_filename': filename,
+                    'decoded_filename': decoded_filename,
+                    'table_name': Config.DYNAMODB_BOOKS_TABLE
+                }
+            }), 404
+        
+        # Add S3 file info
+        try:
+            s3_client = get_s3_client()
+            s3_key = f"{Config.BOOKS_PREFIX}{decoded_filename}"
+            response = s3_client.head_object(
+                Bucket=Config.S3_BUCKET_NAME,
+                Key=s3_key
+            )
+            
+            book_details['s3_size'] = response.get('ContentLength', 0)
+            book_details['s3_last_modified'] = response.get('LastModified', '').isoformat()
+            book_details['s3_content_type'] = response.get('ContentType', 'application/pdf')
+            
+        except ClientError as e:
+            logger.warning(f"Could not get S3 metadata for {filename}: {e}")
+            book_details['s3_size'] = 0
+            book_details['s3_last_modified'] = ''
+            book_details['s3_content_type'] = 'application/pdf'
+        
+        logger.info(f'Retrieved book details for {filename}')
+        
+        return jsonify({
+            'success': True,
+            'book': book_details
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error getting book details for {filename}: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Failed to retrieve book details'
+        }), 500
+
+
 @library_bp.route('/book/<filename>', methods=['GET'])
 def get_book_url(filename):
     """

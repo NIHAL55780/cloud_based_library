@@ -19,6 +19,11 @@ class Config:
     S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'your-bucket-name-here')
     BOOKS_PREFIX = 'books/'
     
+    # DynamoDB Configuration
+    DYNAMODB_REGION = os.getenv('DYNAMODB_REGION', AWS_REGION)
+    DYNAMODB_BOOKS_TABLE = os.getenv('DYNAMODB_BOOKS_TABLE', 'BookMetaData')
+    DYNAMODB_USER_BOOKS_TABLE = os.getenv('DYNAMODB_USER_BOOKS_TABLE', 'DigitalLibrary-UserBooks')
+    
     # Optional: Cognito Configuration (if using authentication)
     COGNITO_USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID')
     COGNITO_CLIENT_ID = os.getenv('COGNITO_CLIENT_ID')
