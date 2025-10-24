@@ -523,6 +523,7 @@ def get_book_details(filename):
             book_details['s3_content_type'] = 'application/pdf'
         
         logger.info(f'Retrieved book details for {filename}')
+        logger.info(f'Book details structure: {list(book_details.keys()) if book_details else "None"}')
         
         return jsonify({
             'success': True,
