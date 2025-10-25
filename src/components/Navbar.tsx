@@ -14,7 +14,7 @@ export const Navbar = () => {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
             <BookOpen className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
-            <span className="text-2xl font-bold gradient-text">CloudReads</span>
+            <span className="text-2xl font-bold gradient-text">Book Vault</span>
           </Link>
           
           <div className="flex items-center gap-3">

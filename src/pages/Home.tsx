@@ -142,7 +142,7 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <BookOpen className="w-6 h-6 text-primary" />
-                <span className="text-xl font-bold gradient-text">CloudReads</span>
+                <span className="text-xl font-bold gradient-text">Book Vault</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Your digital library companion powered by AI
@@ -166,7 +166,7 @@ export default function Home() {
             </div>
           </div>
           <div className="text-center text-sm text-muted-foreground pt-8 border-t border-border/50">
-            © 2024 CloudReads. All rights reserved.
+            © 2024 Book Vault. All rights reserved.
           </div>
         </div>
       </footer>

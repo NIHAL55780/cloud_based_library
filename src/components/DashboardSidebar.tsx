@@ -29,7 +29,7 @@ export const DashboardSidebar = () => {
     >
       <Link to="/dashboard" className="flex items-center gap-2 mb-8 group">
         <BookOpen className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
-        <span className="text-xl font-bold gradient-text">CloudReads</span>
+        <span className="text-xl font-bold gradient-text">Book Vault</span>
       </Link>
 
       <nav className="flex-1 space-y-2">
