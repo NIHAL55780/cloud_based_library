@@ -12,6 +12,7 @@ import json
 
 from config import Config
 from dynamodb_setup import DynamoDBManager
+from enhanced_cover_extractor import cover_extractor
 
 # Initialize the blueprint
 library_bp = Blueprint('library', __name__)
@@ -244,12 +245,29 @@ def get_book_url(filename: str):
         # Get book metadata from DynamoDB
         book = db_manager.get_book_by_filename(filename)
         
+        # If book not in DynamoDB, create basic metadata from filename
         if not book:
-            return jsonify({
-                'success': False,
-                'error': 'Book not found',
-                'message': f'No book found with filename: {filename}'
-            }), 404
+            logger.info(f'Book {filename} not found in DynamoDB, creating basic metadata')
+            # Parse filename to extract basic info
+            name_without_ext = filename.replace('.pdf', '')
+            if ' - ' in name_without_ext:
+                parts = name_without_ext.split(' - ')
+                title = parts[0].strip()
+                author = parts[1].strip() if len(parts) > 1 else "Unknown"
+            elif ' by ' in name_without_ext.lower():
+                parts = name_without_ext.split(' by ')
+                title = parts[0].strip()
+                author = parts[1].strip() if len(parts) > 1 else "Unknown"
+            else:
+                title = name_without_ext
+                author = "Unknown"
+            
+            book = {
+                'filename': filename,
+                'title': title,
+                'author': author,
+                'genre': 'General'
+            }
         
         # Generate pre-signed URL
         s3_client = get_s3_client()
@@ -270,6 +288,95 @@ def get_book_url(filename: str):
             'filename': filename,
             'book_metadata': book
         }), 200
+        
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'NoSuchKey':
+            logger.warning(f'Book not found in S3: {filename}')
+            return jsonify({
+                'success': False,
+                'error': 'Book not found',
+                'message': f'No book found with filename: {filename}'
+            }), 404
+        else:
+            logger.error(f'S3 error in get_book_url: {e}')
+            return jsonify({
+                'success': False,
+                'error': 'S3 error',
+                'message': 'Failed to generate book URL'
+            }), 500
+            
+    except NoCredentialsError:
+        logger.error('AWS credentials not configured')
+        return jsonify({
+            'success': False,
+            'error': 'Configuration error',
+            'message': 'AWS credentials not properly configured'
+        }), 500
+        
+    except Exception as e:
+        logger.error(f'Unexpected error in get_book_url: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred'
+        }), 500
+
+
+@library_bp.route('/book/<filename>/details', methods=['GET'])
+def get_book_details(filename: str):
+    """
+    GET /book/<filename>/details - Get book details and metadata
+    """
+    logger.info(f'Received request to GET /book/{filename}/details')
+    
+    try:
+        # Get book metadata from DynamoDB
+        book = db_manager.get_book_by_filename(filename)
+        
+        # If book not in DynamoDB, create basic metadata from filename
+        if not book:
+            logger.info(f'Book {filename} not found in DynamoDB, creating basic metadata')
+            # Parse filename to extract basic info
+            name_without_ext = filename.replace('.pdf', '')
+            if ' - ' in name_without_ext:
+                parts = name_without_ext.split(' - ')
+                title = parts[0].strip()
+                author = parts[1].strip() if len(parts) > 1 else "Unknown"
+            elif ' by ' in name_without_ext.lower():
+                parts = name_without_ext.split(' by ')
+                title = parts[0].strip()
+                author = parts[1].strip() if len(parts) > 1 else "Unknown"
+            else:
+                title = name_without_ext
+                author = "Unknown"
+            
+            book = {
+                'filename': filename,
+                'title': title,
+                'author': author,
+                'genre': 'General',
+                'language': 'English',
+                'description': f'A digital copy of {title} by {author}',
+                'publication_year': None,
+                'isbn': None,
+                'tags': [],
+                'created_at': None,
+                'updated_at': None
+            }
+        
+        return jsonify({
+            'success': True,
+            'book': book
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error getting book details for {filename}: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Failed to retrieve book details'
+        }), 500
         
     except ClientError as e:
         error_code = e.response['Error']['Code']
@@ -628,3 +735,82 @@ def health_check():
             'error': 'Service error',
             'message': str(e)
         }), 503
+
+
+@library_bp.route('/book/<filename>/cover', methods=['GET'])
+def get_book_cover(filename: str):
+    """
+    GET /book/<filename>/cover - Get or generate cover image for a book
+    
+    Args:
+        filename: The PDF filename
+        
+    Returns:
+        JSON response with cover image URL
+    """
+    logger.info(f'Received request to GET /book/{filename}/cover')
+    
+    try:
+        # Get cover URL (extract if necessary)
+        cover_url = cover_extractor.get_cover_url(filename)
+        
+        if not cover_url:
+            return jsonify({
+                'success': False,
+                'error': 'Cover not available',
+                'message': f'Could not generate cover for {filename}'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'cover_url': cover_url,
+            'filename': filename
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error getting cover for {filename}: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Failed to get book cover'
+        }), 500
+
+
+@library_bp.route('/book/<filename>/cover/extract', methods=['POST'])
+def extract_book_cover(filename: str):
+    """
+    POST /book/<filename>/cover/extract - Force extract cover image for a book
+    
+    Args:
+        filename: The PDF filename
+        
+    Returns:
+        JSON response with cover image URL
+    """
+    logger.info(f'Received request to POST /book/{filename}/cover/extract')
+    
+    try:
+        # Force extract cover (even if it exists)
+        cover_url = cover_extractor.extract_cover_from_s3(filename)
+        
+        if not cover_url:
+            return jsonify({
+                'success': False,
+                'error': 'Cover extraction failed',
+                'message': f'Could not extract cover for {filename}'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'cover_url': cover_url,
+            'filename': filename,
+            'message': 'Cover extracted successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Error extracting cover for {filename}: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Failed to extract book cover'
+        }), 500
