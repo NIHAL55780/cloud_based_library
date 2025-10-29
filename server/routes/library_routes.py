@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 import logging
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
+from datetime import datetime
 
 from config import Config
 
@@ -40,10 +41,23 @@ def get_s3_client():
         raise
 
 
+def format_error_response(error_type, message, status_code=500, **kwargs):
+    """
+    Standardized error response format
+    """
+    return jsonify({
+        'success': False,
+        'error': error_type,
+        'message': message,
+        'timestamp': datetime.utcnow().isoformat(),
+        **kwargs
+    }), status_code
+
+
 @library_bp.route('/books', methods=['GET'])
 def get_all_books():
     """
-    GET /books - Fetch all books from S3
+    GET /books - Fetch all books from DynamoDB (not S3!)
     
     Returns:
         JSON response with list of all books and their metadata
@@ -51,233 +65,44 @@ def get_all_books():
     logger.info('Received request to GET /books')
     
     try:
-        s3_client = get_s3_client()
+        # Import DynamoDB helper
+        from dynamodb_helper import SimpleDynamoDBHelper
+        db_helper = SimpleDynamoDBHelper()
         
-        # List objects in the books/ prefix
-        response = s3_client.list_objects_v2(
-            Bucket=Config.S3_BUCKET_NAME,
-            Prefix=Config.BOOKS_PREFIX
-        )
+        # Get all books from DynamoDB
+        books = db_helper.get_all_books()
         
-        books = []
-        for obj in response.get('Contents', []):
-            # Skip directories
-            if obj['Key'].endswith('/'):
-                continue
-                
-            # Extract filename from full key
-            filename = obj['Key'].replace(Config.BOOKS_PREFIX, '')
+        # Format books data - READ FROM DYNAMODB
+        formatted_books = []
+        for item in books:
+            book = {
+                'title': item.get('Title', ''),
+                'author': item.get('Author', ''),
+                'genre': item.get('Genre'),  # ← Read Genre from DynamoDB (Capital G)
+                'filename': item.get('Title', ''),  # Use Title as filename
+                'description': item.get('Description', ''),
+                'book_id': item.get('BookID', '')
+            }
             
-            # Parse filename to extract metadata with intelligent pattern recognition
-            try:
-                name_without_ext = filename.replace('.pdf', '')
-                genre = "General"  # Default genre
-                
-                # Common author name patterns to help identify authors
-                common_authors = [
-                    'Arundhati Roy', 'A.P.J. Abdul Kalam', 'Abdul Kalam', 'Kalam',
-                    'Norman Vincent Peale', 'Vincent Peale', 'Peale',
-                    'J.K. Rowling', 'Rowling',
-                    'George Orwell', 'Orwell',
-                    'Harper Lee', 'Lee',
-                    'F. Scott Fitzgerald', 'Fitzgerald',
-                    'Ernest Hemingway', 'Hemingway',
-                    'Mark Twain', 'Twain',
-                    'Charles Dickens', 'Dickens',
-                    'Jane Austen', 'Austen',
-                    'Leo Tolstoy', 'Tolstoy',
-                    'Fyodor Dostoevsky', 'Dostoevsky',
-                    'Gabriel Garcia Marquez', 'Marquez',
-                    'Maya Angelou', 'Angelou',
-                    'Toni Morrison', 'Morrison',
-                    'Chimamanda Ngozi Adichie', 'Adichie',
-                    'Arundhati', 'Roy'
-                ]
-                
-                # Common genre categories
-                genre_keywords = {
-                    'mystery': ['mystery', 'detective', 'crime', 'thriller', 'suspense', 'sherlock', 'holmes'],
-                    'inspiration': ['inspiration', 'motivation', 'self-help', 'positive', 'thinking', 'mindset', 'success'],
-                    'romance': ['romance', 'love', 'relationship', 'dating', 'marriage'],
-                    'fiction': ['fiction', 'novel', 'story', 'tale', 'adventure'],
-                    'biography': ['biography', 'autobiography', 'memoir', 'life', 'story'],
-                    'science': ['science', 'technology', 'research', 'discovery', 'innovation'],
-                    'philosophy': ['philosophy', 'wisdom', 'knowledge', 'truth', 'meaning'],
-                    'history': ['history', 'historical', 'past', 'ancient', 'war'],
-                    'fantasy': ['fantasy', 'magic', 'wizard', 'dragon', 'mythical'],
-                    'horror': ['horror', 'scary', 'ghost', 'supernatural', 'frightening'],
-                    'comedy': ['comedy', 'humor', 'funny', 'joke', 'laugh'],
-                    'drama': ['drama', 'tragedy', 'serious', 'emotional', 'intense']
-                }
-                
-                def is_likely_author(text):
-                    """Check if text is likely an author name"""
-                    text_lower = text.lower()
-                    return any(author.lower() in text_lower for author in common_authors)
-                
-                def is_likely_title(text):
-                    """Check if text is likely a book title"""
-                    # Titles are usually longer and contain common words
-                    words = text.split()
-                    if len(words) < 2:
-                        return False
-                    # Common title words
-                    title_words = ['the', 'of', 'and', 'in', 'a', 'an', 'to', 'for', 'with', 'by']
-                    return any(word.lower() in title_words for word in words)
-                
-                def detect_genre(text):
-                    """Detect genre based on keywords in the text"""
-                    text_lower = text.lower()
-                    for genre, keywords in genre_keywords.items():
-                        if any(keyword in text_lower for keyword in keywords):
-                            return genre.title()
-                    return "General"
-                
-                # Handle different filename patterns
-                if ' - ' in name_without_ext:
-                    # Pattern: "Author - Title" or "Title - Author"
-                    parts = name_without_ext.split(' - ')
-                    if len(parts) == 2:
-                        first_part = parts[0].strip()
-                        second_part = parts[1].strip()
-                        
-                        # Intelligent detection based on content
-                        if is_likely_author(first_part) and not is_likely_author(second_part):
-                            author = first_part
-                            title = second_part
-                        elif is_likely_author(second_part) and not is_likely_author(first_part):
-                            title = first_part
-                            author = second_part
-                        elif is_likely_title(first_part) and not is_likely_title(second_part):
-                            title = first_part
-                            author = second_part
-                        else:
-                            # Default: assume first part is title, second is author
-                            title = first_part
-                            author = second_part
-                        
-                        # Detect genre from the full filename
-                        genre = detect_genre(name_without_ext)
-                    else:
-                        title = name_without_ext
-                        author = "Unknown"
-                        genre = detect_genre(name_without_ext)
-                        
-                elif '_' in name_without_ext:
-                    # Pattern: "title_author" or "title_author_genre"
-                    parts = name_without_ext.split('_')
-                    if len(parts) >= 2:
-                        # Try to identify which part is author vs title
-                        if is_likely_author(parts[1]):
-                            title = parts[0].replace('-', ' ')
-                            author = parts[1].replace('-', ' ')
-                        elif len(parts) >= 3:
-                            # Likely format: title_author_genre
-                            title = parts[0].replace('-', ' ')
-                            author = ' '.join(parts[1:-1]).replace('-', ' ')
-                            genre = parts[-1].replace('-', ' ')
-                        else:
-                            # For simple two-part patterns, try to detect author
-                            potential_author = parts[1].replace('-', ' ')
-                            if is_likely_author(potential_author):
-                                title = parts[0].replace('-', ' ')
-                                author = potential_author
-                            else:
-                                # Default: first part is title, second is author
-                                title = parts[0].replace('-', ' ')
-                                author = potential_author
-                        
-                        # If genre wasn't explicitly set, detect it
-                        if genre == "General":
-                            genre = detect_genre(name_without_ext)
-                    else:
-                        title = name_without_ext
-                        author = "Unknown"
-                        genre = detect_genre(name_without_ext)
-                        
-                elif ' by ' in name_without_ext.lower():
-                    # Pattern: "Title by Author"
-                    parts = name_without_ext.split(' by ')
-                    if len(parts) == 2:
-                        title = parts[0].strip()
-                        author = parts[1].strip()
-                    else:
-                        title = name_without_ext
-                        author = "Unknown"
-                    
-                    # Detect genre from the full filename
-                    genre = detect_genre(name_without_ext)
-                        
-                elif ',' in name_without_ext:
-                    # Pattern: "Author, Title" or "Title, Author"
-                    parts = name_without_ext.split(',')
-                    if len(parts) == 2:
-                        first_part = parts[0].strip()
-                        second_part = parts[1].strip()
-                        
-                        if is_likely_author(first_part):
-                            author = first_part
-                            title = second_part
-                        else:
-                            title = first_part
-                            author = second_part
-                    else:
-                        title = name_without_ext
-                        author = "Unknown"
-                    
-                    # Detect genre from the full filename
-                    genre = detect_genre(name_without_ext)
-                else:
-                    # Single word or simple title - try to extract meaningful title
-                    title = name_without_ext
-                    author = "Unknown"
-                    genre = detect_genre(name_without_ext)
-                    
-            except Exception as e:
-                logger.warning(f"Error parsing filename {filename}: {e}")
-                title = filename.replace('.pdf', '')
-                author = "Unknown"
-                genre = "General"
-            
-            books.append({
-                'filename': filename,
-                'title': title,
-                'author': author,
-                'genre': genre,
-                'size': obj['Size'],
-                'last_modified': obj['LastModified'].isoformat()
-            })
+            # Only add books that have a genre
+            if book['genre']:
+                formatted_books.append(book)
         
-        logger.info(f'Retrieved {len(books)} books from S3')
+        logger.info(f'Retrieved {len(formatted_books)} books from DynamoDB')
         
         return jsonify({
             'success': True,
-            'count': len(books),
-            'books': books
+            'count': len(formatted_books),
+            'books': formatted_books,
+            'cached': False
         }), 200
         
-    except ClientError as e:
-        logger.error(f'S3 error in get_all_books: {e}')
-        return jsonify({
-            'success': False,
-            'error': 'S3 error',
-            'message': 'Failed to retrieve books from S3'
-        }), 500
-        
-    except NoCredentialsError:
-        logger.error('AWS credentials not configured')
-        return jsonify({
-            'success': False,
-            'error': 'Configuration error',
-            'message': 'AWS credentials not properly configured'
-        }), 500
-        
     except Exception as e:
-        logger.error(f'Unexpected error in get_all_books: {e}')
+        logger.error(f'Error fetching books: {e}')
         return jsonify({
             'success': False,
             'error': 'Internal server error',
-            'message': 'An unexpected error occurred while retrieving books'
+            'message': str(e)
         }), 500
 
 
@@ -539,7 +364,7 @@ def get_book_details(filename):
         }), 500
 
 
-@library_bp.route('/book/<filename>', methods=['GET'])
+@library_bp.route('/book/<path:filename>', methods=['GET'])
 def get_book_url(filename):
     """
     GET /book/<filename> - Generate pre-signed URL for a specific book
@@ -550,46 +375,71 @@ def get_book_url(filename):
     Returns:
         JSON response with pre-signed URL
     """
-    logger.info(f'Received request to GET /book/{filename}')
+    from urllib.parse import unquote
+    
+    # Decode URL encoding
+    decoded_filename = unquote(filename)
+    logger.info(f'Received request to GET /book/{decoded_filename}')
     
     try:
         s3_client = get_s3_client()
         
-        # Construct the full S3 key
-        s3_key = f"{Config.BOOKS_PREFIX}{filename}"
+        # Construct the full S3 key - NO SPACE after books/
+        # Also add .pdf extension if not present
+        if not decoded_filename.endswith('.pdf'):
+            decoded_filename = f"{decoded_filename}.pdf"
+        
+        s3_key = f"books/{decoded_filename}"  # No Config.BOOKS_PREFIX with extra space
+        
+        logger.info(f'Looking for S3 key: {s3_key}')
+        
+        # First, check if the file exists in S3
+        try:
+            s3_client.head_object(Bucket=Config.S3_BUCKET_NAME, Key=s3_key)
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                logger.error(f'File not found in S3: {s3_key}')
+                return jsonify({
+                    'success': False,
+                    'error': 'Book not found',
+                    'message': f'No book found with filename: {decoded_filename}',
+                    'debug': {
+                        's3_key': s3_key,
+                        'bucket': Config.S3_BUCKET_NAME
+                    }
+                }), 404
+            raise
         
         # Generate pre-signed URL (expires in 1 hour)
         presigned_url = s3_client.generate_presigned_url(
             'get_object',
-            Params={'Bucket': Config.S3_BUCKET_NAME, 'Key': s3_key},
+            Params={
+                'Bucket': Config.S3_BUCKET_NAME,
+                'Key': s3_key,
+                'ResponseContentDisposition': f'inline; filename="{decoded_filename}"',
+                'ResponseContentType': 'application/pdf'
+            },
             ExpiresIn=3600  # 1 hour
         )
         
-        logger.info(f'Generated pre-signed URL for {filename}')
+        logger.info(f'Generated pre-signed URL for {decoded_filename}')
         
         return jsonify({
             'success': True,
             'url': presigned_url,
             'expires_in': 3600,
-            'filename': filename
+            'filename': decoded_filename
         }), 200
         
     except ClientError as e:
         error_code = e.response['Error']['Code']
-        if error_code == 'NoSuchKey':
-            logger.warning(f'Book not found: {filename}')
-            return jsonify({
-                'success': False,
-                'error': 'Book not found',
-                'message': f'No book found with filename: {filename}'
-            }), 404
-        else:
-            logger.error(f'S3 error in get_book_url: {e}')
-            return jsonify({
-                'success': False,
-                'error': 'S3 error',
-                'message': 'Failed to generate book URL'
-            }), 500
+        logger.error(f'S3 error in get_book_url: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'S3 error',
+            'message': str(e),
+            'error_code': error_code
+        }), 500
             
     except NoCredentialsError:
         logger.error('AWS credentials not configured')
@@ -601,17 +451,19 @@ def get_book_url(filename):
         
     except Exception as e:
         logger.error(f'Unexpected error in get_book_url: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': 'Internal server error',
-            'message': 'An unexpected error occurred while generating book URL'
+            'message': str(e)
         }), 500
 
 
 @library_bp.route('/genres', methods=['GET'])
 def get_genres():
     """
-    GET /genres - Get all available book genres
+    GET /genres - Get all available book genres from DynamoDB
     
     Returns:
         JSON response with list of all available genres
@@ -619,23 +471,36 @@ def get_genres():
     logger.info('Received request to GET /genres')
     
     try:
-        # Get all available genres from the genre_keywords
-        genres = [
-            'All Genres', 'Mystery', 'Inspiration', 'Romance', 'Fiction', 
-            'Biography', 'Science', 'Philosophy', 'History', 'Fantasy', 
-            'Horror', 'Comedy', 'Drama', 'General'
-        ]
+        # Import DynamoDB helper
+        from dynamodb_helper import SimpleDynamoDBHelper
+        db_helper = SimpleDynamoDBHelper()
+        
+        # Get all books from DynamoDB
+        books = db_helper.get_all_books()
+        
+        # Extract unique genres (Capital G from DynamoDB)
+        genres = set()
+        for book in books:
+            genre = book.get('Genre')  # ← Capital G
+            if genre:
+                genres.add(genre)
+        
+        sorted_genres = ['All Genres'] + sorted(list(genres))
+        
+        logger.info(f'Found {len(sorted_genres)} unique genres')
         
         return jsonify({
             'success': True,
-            'genres': genres
+            'genres': sorted_genres,
+            'count': len(sorted_genres)
         }), 200
         
     except Exception as e:
         logger.error(f'Error getting genres: {e}')
         return jsonify({
             'success': False,
-            'error': 'Failed to retrieve genres'
+            'error': 'Failed to retrieve genres',
+            'message': str(e)
         }), 500
 
 
